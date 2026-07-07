@@ -3,6 +3,16 @@ import type { CharacterState } from './StateMachine'
 /** Frame index (0-based) where hitbox becomes active — "frame 3" in design docs. */
 export const HIT_ACTIVE_FRAME = 2
 
+/**
+ * Clamp the design's target hit-frame to whatever frames an animation
+ * actually has. Some sheets (e.g. Countess_Vampire's 1-frame Attack_3) are
+ * shorter than HIT_ACTIVE_FRAME — without this, the hitbox would never
+ * activate and that action would silently never deal damage.
+ */
+export function getHitActiveFrame(totalFrames: number): number {
+  return Math.max(0, Math.min(HIT_ACTIVE_FRAME, totalFrames - 1))
+}
+
 export type HitBox = {
   x: number
   y: number

@@ -1,9 +1,10 @@
 import Phaser from 'phaser'
 import {
-  ALL_ANIMS,
   ANIM_META,
   animKey,
   FRAME_SIZE,
+  frameCount,
+  getCharAnims,
   HERO_FOLDERS,
   sheetPath,
   type AnimName,
@@ -25,12 +26,13 @@ export function preloadAnim(
 export function registerAnim(scene: Phaser.Scene, folder: HeroFolder, anim: AnimName): void {
   const key = animKey(folder, anim)
   const meta = ANIM_META[anim]
+  const frames = frameCount(folder, anim)
 
   if (scene.anims.exists(key)) return
 
   scene.anims.create({
     key,
-    frames: scene.anims.generateFrameNumbers(key, { start: 0, end: meta.frames - 1 }),
+    frames: scene.anims.generateFrameNumbers(key, { start: 0, end: frames - 1 }),
     frameRate: meta.fps,
     repeat: meta.loop ? -1 : 0,
   })
@@ -42,7 +44,7 @@ function setNearestFilter(scene: Phaser.Scene, folder: HeroFolder, anim: AnimNam
 
 export function preloadCharacterSheets(loader: Phaser.Loader.LoaderPlugin): void {
   for (const folder of HERO_FOLDERS) {
-    for (const anim of ALL_ANIMS) {
+    for (const anim of getCharAnims(folder)) {
       preloadAnim(loader, folder, anim)
     }
   }
@@ -50,7 +52,7 @@ export function preloadCharacterSheets(loader: Phaser.Loader.LoaderPlugin): void
 
 export function registerCharacterAnims(scene: Phaser.Scene): void {
   for (const folder of HERO_FOLDERS) {
-    for (const anim of ALL_ANIMS) {
+    for (const anim of getCharAnims(folder)) {
       registerAnim(scene, folder, anim)
       setNearestFilter(scene, folder, anim)
     }

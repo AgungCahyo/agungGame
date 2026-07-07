@@ -7,6 +7,10 @@ const APPROACH_RANGE = 260
 const DANGER_RANGE = 140
 const RETREAT_HP = 0.35
 
+/** Min/max seconds the AI waits after landing an attack before it's willing to attack again. */
+const ATTACK_RECOVERY_MIN = 0.45
+const ATTACK_RECOVERY_MAX = 0.95
+
 type AiMood = 'idle' | 'approach' | 'attack' | 'defend' | 'retreat'
 
 export class AISystem {
@@ -14,6 +18,7 @@ export class AISystem {
   private mood: AiMood = 'approach'
   private moodTimer = 0
   private attackBias = 0
+  private attackCooldown = 0
 
   update(delta: number, self: Character, target: Character): PlayerInput {
     const none: PlayerInput = {
@@ -36,6 +41,7 @@ export class AISystem {
     const dt = delta / 1000
     this.thinkTimer -= dt
     this.moodTimer -= dt
+    this.attackCooldown = Math.max(0, this.attackCooldown - dt)
 
     if (this.thinkTimer <= 0) {
       this.thinkTimer = 0.12 + Math.random() * 0.08
@@ -127,7 +133,7 @@ export class AISystem {
 
       case 'attack':
         self.faceToward(target)
-        if (distance <= ATTACK_RANGE + 16 && self.stateMachine.canAttack()) {
+        if (distance <= ATTACK_RANGE + 16 && self.stateMachine.canAttack() && this.attackCooldown <= 0) {
           if (self.skillReady && this.attackBias > 0.72) {
             input.skill = true
           } else if (this.attackBias < 0.45) {
@@ -137,6 +143,12 @@ export class AISystem {
           } else {
             input.attack3 = true
           }
+          this.attackCooldown = ATTACK_RECOVERY_MIN + Math.random() * (ATTACK_RECOVERY_MAX - ATTACK_RECOVERY_MIN)
+        } else if (distance <= ATTACK_RANGE + 16) {
+          // In range but recovering from its last swing — hang back instead
+          // of walking into the player's counter-attack, and sometimes raise
+          // its guard so it isn't a completely free punish window.
+          if (Math.random() < 0.3) input.shield = true
         } else if (towardRight) {
           input.right = true
           input.run = distance > ATTACK_RANGE

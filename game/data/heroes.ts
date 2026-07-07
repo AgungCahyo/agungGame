@@ -1,16 +1,6 @@
-import type { HeroFolder } from './animations'
+import type { AnimName, HeroFolder } from './animations'
 
-export type AnimName =
-  | 'Idle'
-  | 'Walk'
-  | 'Run'
-  | 'Jump'
-  | 'Attack_1'
-  | 'Attack_2'
-  | 'Attack_3'
-  | 'Shield'
-  | 'Hurt'
-  | 'Dead'
+export type { AnimName }
 
 export type ActionResult = {
   amount: number
@@ -145,7 +135,10 @@ class ConvertedVampire extends Player {
 
 class CountessVampire extends Player {
   skillLabel = 'Crimson Edge'
-  skillAnimKey = 'Attack_3' as AnimName
+  // NOTE: her Attack_3.png on disk is a single static frame — the hitbox's
+  // active frame index never occurs on a 1-frame animation, so that sheet
+  // can never register a hit. Attack_4 is her real 6-frame special.
+  skillAnimKey = 'Attack_4' as AnimName
   constructor(name: string) {
     super('countess_vampire', name, 'Countess_Vampire', 20, 85, 620, 2000, '#D9224A')
   }

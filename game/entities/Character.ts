@@ -4,7 +4,7 @@ import { animKey } from '../data/animations'
 import type { ActionResult } from '../data/heroes'
 import { createPlayerByFolder, type Player } from '../data/heroes'
 import type { PlayerInput } from '../systems/InputSystem'
-import { HIT_ACTIVE_FRAME, isHitboxState } from '../systems/HitboxSystem'
+import { getHitActiveFrame, isHitboxState } from '../systems/HitboxSystem'
 import { PHYSICS, decayVelocity, knockbackDirection } from '../systems/PhysicsSystem'
 import { applySelfSkill, isSelfSkill, skillCooldownSec } from '../systems/SkillSystem'
 import { StateMachine, stateToAnim, type CharacterState } from '../systems/StateMachine'
@@ -370,7 +370,7 @@ export class Character extends Phaser.GameObjects.Sprite {
   }
 
   private onAnimationUpdate(
-    _animation: Phaser.Animations.Animation,
+    animation: Phaser.Animations.Animation,
     frame: Phaser.Animations.AnimationFrame,
   ): void {
     if (!isHitboxState(this.characterState)) {
@@ -378,7 +378,8 @@ export class Character extends Phaser.GameObjects.Sprite {
       return
     }
 
-    this.hitboxActive = frame.index === HIT_ACTIVE_FRAME
+    const activeFrame = getHitActiveFrame(animation.frames.length)
+    this.hitboxActive = frame.index === activeFrame
   }
 
   private onAnimationComplete(animation: Phaser.Animations.Animation): void {
@@ -387,11 +388,16 @@ export class Character extends Phaser.GameObjects.Sprite {
 
     if (this.characterState === 'skill') {
       this.hitboxActive = false
-      if (this.characterState !== 'dead') this.enterState('idle', true)
+      this.enterState('idle', true)
       return
     }
 
-    if (key.endsWith('Attack_1') || key.endsWith('Attack_2') || key.endsWith('Attack_3')) {
+    if (
+      key.endsWith('Attack_1') ||
+      key.endsWith('Attack_2') ||
+      key.endsWith('Attack_3') ||
+      key.endsWith('Attack_4')
+    ) {
       this.hitboxActive = false
       if (this.characterState !== 'dead') this.enterState('idle', true)
       return

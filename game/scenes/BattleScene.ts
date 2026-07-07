@@ -16,7 +16,7 @@ export class BattleScene extends Phaser.Scene {
   private player!: Character
   private enemy!: Enemy
   private inputSystem!: InputSystem
-  private combat = new CombatSystem()
+  private combat!: CombatSystem
   private effects!: EffectsSystem
   private ui!: BattleUI
   private debugGfx?: Phaser.GameObjects.Graphics
@@ -29,6 +29,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create() {
+    // scene.restart() reuses this same BattleScene instance and re-runs
+    // create() — it does NOT re-run field initializers. Without resetting
+    // these here, `battleOver` stays true forever after the first match and
+    // every future match gets stuck (update() short-circuits into the
+    // "battle over" branch and gameplay never runs again).
+    this.battleOver = false
+    this.combat = new CombatSystem()
+    this.debugGfx?.destroy()
+    this.debugGfx = undefined
+
     const setup = GameRegistry.battle ?? DEFAULT_BATTLE
     const { width, height } = this.scale
     const groundY = height - 48

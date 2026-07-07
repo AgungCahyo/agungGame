@@ -91,5 +91,10 @@ export function stateToAnim(state: CharacterState): AnimName {
       return 'Hurt'
     case 'dead':
       return 'Dead'
+    case 'skill':
+      // Never actually used: Character.enterState plays the hero's own
+      // player.skillAnimKey directly for the 'skill' state. This case only
+      // exists so the switch is exhaustive for CharacterState.
+      return 'Attack_2'
   }
 }

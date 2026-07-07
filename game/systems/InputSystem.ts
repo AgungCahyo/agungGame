@@ -66,10 +66,11 @@ export class InputSystem {
       right: kb.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
       run: kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
       jump: kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-      dash: kb.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_ENTER),
+      dash: kb.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_ADD),
       attack1: kb.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_ONE),
       attack2: kb.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_TWO),
       attack3: kb.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_THREE),
+      skill: kb.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_FOUR),
       shield: kb.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_ZERO),
     }
   }

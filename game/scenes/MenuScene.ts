@@ -128,9 +128,19 @@ export class MenuScene extends Phaser.Scene {
 
   private refreshSelection(): void {
     this.cards.forEach((card, i) => {
-      const bg = card.getAt(0) as Phaser.GameObjects.Rectangle
       const selected = i === this.selectedIndex
-      bg.setStrokeStyle(selected ? 3 : 2, selected ? 0xffffff : 0x333344)
+
+      // Find the background rectangle among the container's children.
+      // Use `list` to be robust across Phaser versions and guard if missing.
+      const children = (card as any).list as Phaser.GameObjects.GameObject[] | undefined
+      const bg = children?.find((c) => c instanceof Phaser.GameObjects.Rectangle) as
+        | Phaser.GameObjects.Rectangle
+        | undefined
+
+      if (bg) {
+        bg.setStrokeStyle(selected ? 3 : 2, selected ? 0xffffff : 0x333344)
+      }
+
       card.setScale(selected ? 1.04 : 1)
     })
   }
