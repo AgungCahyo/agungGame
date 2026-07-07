@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
 // ─────────────────────────────────────────────
@@ -595,6 +596,12 @@ export default function Home() {
             <p className="text-xs tracking-[0.3em] text-white/40 font-mono uppercase">Sprite Duel</p>
             <h1 className="text-2xl font-semibold mt-1">Pilih Hero</h1>
             <p className="text-white/40 text-sm mt-1">Local 2-player — satu keyboard, dua pemain.</p>
+            <Link
+              href="/battle"
+              className="inline-block mt-3 text-xs font-mono text-[#4A90D9] hover:text-[#6aa8e8] transition-colors"
+            >
+              → Coba Phaser Battle
+            </Link>
           </div>
 
           {(['p1', 'p2'] as const).map((side) => {
