@@ -197,8 +197,9 @@ export function createPlayerByFolder(folder: HeroFolder): Player {
   return hero.create(hero.label)
 }
 
-export const ATTACK_DAMAGE_MULT: Record<'attack1' | 'attack2' | 'attack3', number> = {
+export const ATTACK_DAMAGE_MULT: Record<'attack1' | 'attack2' | 'attack3' | 'jumpAttack', number> = {
   attack1: 1,
   attack2: 1.25,
   attack3: 1.5,
+  jumpAttack: 0.8,
 }

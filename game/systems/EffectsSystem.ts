@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import type { Character } from '../entities/Character'
 
 export type HitEvent = {
   x: number
@@ -7,6 +8,7 @@ export type HitEvent = {
   isCrit: boolean
   isSkill: boolean
   kind: 'damage' | 'heal'
+  heroId?: string
 }
 
 export class EffectsSystem {
@@ -15,10 +17,15 @@ export class EffectsSystem {
   private audioCtx: AudioContext | null = null
   private musicGain: GainNode | null = null
   private musicOsc: OscillatorNode | null = null
+  private lowHpVignette?: Phaser.GameObjects.Rectangle
 
   constructor(private readonly scene: Phaser.Scene) {
     this.ensureParticleTexture()
     this.startAmbientMusic()
+    const { width, height } = this.scene.scale
+    this.lowHpVignette = this.scene.add.rectangle(width / 2, height / 2, width, height, 0xff2d2d, 0)
+      .setDepth(140)
+      .setScrollFactor(0)
   }
 
   get isHitStopped(): boolean {
@@ -33,6 +40,20 @@ export class EffectsSystem {
     this.hitStopMs = Math.max(this.hitStopMs, ms)
   }
 
+  syncLowHpWarning(fighters: Character[]): void {
+    const shouldWarn = fighters.some((fighter) => fighter.player.health / fighter.player.maxHealth < 0.25 && fighter.characterState !== 'dead')
+
+    if (this.lowHpVignette) {
+      this.lowHpVignette.setAlpha(shouldWarn ? 0.08 : 0)
+    }
+
+    fighters.forEach((fighter) => {
+      const lowHp = fighter.player.health / fighter.player.maxHealth < 0.25 && fighter.characterState !== 'dead'
+      fighter.setTint(lowHp ? 0xff6666 : 0xffffff)
+      fighter.setAlpha(lowHp ? 0.72 + 0.14 * Math.sin(this.scene.time.now / 120) : 1)
+    })
+  }
+
   onHit(event: HitEvent): void {
     if (event.kind === 'heal') {
       this.playHealSound()
@@ -43,7 +64,7 @@ export class EffectsSystem {
     this.scene.cameras.main.shake(90, 0.003 * intensity)
     this.requestHitStop(event.isCrit ? 70 : event.isSkill ? 55 : 40)
     this.screenFlash(event.isCrit ? 0xffffff : 0xff4466, event.isCrit ? 0.22 : 0.12, 90)
-    this.spawnHitParticles(event.x, event.y - 90, event.isCrit)
+    this.spawnHitParticles(event.x, event.y - 90, event.isCrit, event.heroId)
     this.playHitSound(event.isCrit)
   }
 
@@ -66,21 +87,23 @@ export class EffectsSystem {
     g.destroy()
   }
 
-  private spawnHitParticles(x: number, y: number, isCrit: boolean): void {
+  private spawnHitParticles(x: number, y: number, isCrit: boolean, heroId?: string): void {
+    const isVampire = !!heroId && /vampire/i.test(heroId)
     const count = isCrit ? 14 : 8
     for (let i = 0; i < count; i++) {
       const p = this.scene.add.image(x, y, 'fx-spark')
-      p.setTint(isCrit ? 0xfbbf24 : 0xffffff)
-      p.setScale(Phaser.Math.FloatBetween(0.4, 1.1))
+      p.setTint(isCrit ? (isVampire ? 0xf472b6 : 0xfbbf24) : (isVampire ? 0x9b5de5 : 0xffffff))
+      p.setScale(Phaser.Math.FloatBetween(0.4, isVampire ? 1.2 : 1.1))
       p.setDepth(50)
 
       const angle = Phaser.Math.FloatBetween(-Math.PI, 0)
       const speed = Phaser.Math.Between(80, isCrit ? 220 : 160)
+      const spread = isVampire ? 0.5 : 0.35
 
       this.scene.tweens.add({
         targets: p,
-        x: x + Math.cos(angle) * speed * 0.35,
-        y: y + Math.sin(angle) * speed * 0.35,
+        x: x + Math.cos(angle) * speed * spread,
+        y: y + Math.sin(angle) * speed * spread,
         alpha: 0,
         scale: 0,
         duration: Phaser.Math.Between(180, 320),

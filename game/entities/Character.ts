@@ -11,6 +11,12 @@ import { StateMachine, stateToAnim, type CharacterState } from '../systems/State
 
 export type Facing = 'left' | 'right'
 
+const GUARD_STAMINA_MAX = 100
+const GUARD_STAMINA_REGEN_PER_SEC = 20
+const GUARD_BREAK_DURATION_MS = 900
+const GUARD_CHIP_PCT = 0.12
+const POST_HURT_IFRAME_MS = 280
+
 export class Character extends Phaser.GameObjects.Sprite {
   readonly folder: HeroFolder
   readonly groundY: number
@@ -23,6 +29,11 @@ export class Character extends Phaser.GameObjects.Sprite {
   attackHitLanded = false
   skillHitLanded = false
   skillCooldown = 0
+  /** Set true when an attack animation finishes without landing a hit. */
+  lastWhiffed = false
+
+  readonly maxGuardStamina = GUARD_STAMINA_MAX
+  guardStamina = GUARD_STAMINA_MAX
 
   boundsMinX = 48
   boundsMaxX = 912
@@ -32,7 +43,10 @@ export class Character extends Phaser.GameObjects.Sprite {
   private isDashing = false
   private dashTimer = 0
   private dashCooldown = 0
+  private isAirDashing = false
   private knockbackTimer = 0
+  private guardBreakTimer = 0
+  private invulnTimer = 0
 
   constructor(
     scene: Phaser.Scene,
@@ -69,12 +83,57 @@ export class Character extends Phaser.GameObjects.Sprite {
     return this.skillCooldown <= 0
   }
 
+  get isInvulnerable(): boolean {
+    return this.invulnTimer > 0
+  }
+
+  resetForRound(x: number): void {
+    this.player.health = this.player.maxHealth
+    this.guardStamina = this.maxGuardStamina
+    this.skillCooldown = 0
+    this.velocityX = 0
+    this.velocityY = 0
+    this.isGrounded = true
+    this.isDashing = false
+    this.isAirDashing = false
+    this.dashTimer = 0
+    this.dashCooldown = 0
+    this.knockbackTimer = 0
+    this.guardBreakTimer = 0
+    this.invulnTimer = 0
+    this.hitboxActive = false
+    this.attackHitLanded = false
+    this.skillHitLanded = false
+    this.lastWhiffed = false
+    this.setAlpha(1)
+    this.x = x
+    this.y = this.groundY
+    this.enterState('idle', true)
+  }
+
   update(delta: number, input: PlayerInput, opponent: Character): void {
     if (this.characterState === 'dead') return
 
     const dt = delta / 1000
     this.dashCooldown = Math.max(0, this.dashCooldown - dt)
     this.skillCooldown = Math.max(0, this.skillCooldown - dt)
+
+    if (this.characterState === 'guardBreak') {
+      this.guardBreakTimer -= delta
+      if (this.guardBreakTimer <= 0) {
+        this.guardBreakTimer = 0
+        this.enterState('idle', true)
+        this.startPostHurtInvuln()
+      }
+    } else if (this.characterState !== 'shield') {
+      this.guardStamina = Math.min(this.maxGuardStamina, this.guardStamina + GUARD_STAMINA_REGEN_PER_SEC * dt)
+    }
+
+    if (this.invulnTimer > 0) {
+      this.invulnTimer = Math.max(0, this.invulnTimer - delta)
+      this.setAlpha(this.invulnTimer > 0 && Math.floor(this.invulnTimer / 45) % 2 === 0 ? 0.4 : 1)
+      if (this.invulnTimer <= 0) this.setAlpha(1)
+    }
 
     if (input.dash) this.tryDash()
 
@@ -96,7 +155,7 @@ export class Character extends Phaser.GameObjects.Sprite {
   }
 
   receiveDamage(amount: number, _isCrit: boolean, fromX?: number): void {
-    if (this.characterState === 'dead' || this.characterState === 'shield') return
+    if (this.characterState === 'dead' || this.characterState === 'shield' || this.invulnTimer > 0) return
 
     this.player.takeDamage(amount)
     this.hitboxActive = false
@@ -115,8 +174,55 @@ export class Character extends Phaser.GameObjects.Sprite {
     }
   }
 
+  /**
+   * Called instead of receiveDamage when the target is actively shielding.
+   * Drains guard stamina by the raw (unblocked) hit amount; while stamina
+   * holds, only a small % of that damage leaks through as chip damage. Once
+   * stamina is exhausted, the guard breaks: the full hit lands and the
+   * target staggers (enterGuardBreak) instead of just standing there
+   * with free, unlimited block.
+   */
+  receiveGuardedHit(rawAmount: number, fromX?: number): { chipDamage: number; brokeGuard: boolean } {
+    if (this.characterState === 'dead' || this.invulnTimer > 0) return { chipDamage: 0, brokeGuard: false }
+
+    this.guardStamina = Math.max(0, this.guardStamina - rawAmount)
+
+    if (this.guardStamina <= 0) {
+      this.hitboxActive = false
+      this.isDashing = false
+      if (fromX !== undefined) this.applyKnockback(fromX)
+
+      this.player.takeDamage(rawAmount)
+      if (this.player.isDead()) {
+        this.enterState('dead', true)
+      } else {
+        this.enterGuardBreak()
+      }
+      return { chipDamage: rawAmount, brokeGuard: true }
+    }
+
+    const chip = Math.max(1, Math.round(rawAmount * GUARD_CHIP_PCT))
+    this.player.takeDamage(chip)
+    if (this.player.isDead()) {
+      this.enterState('dead', true)
+    }
+    return { chipDamage: chip, brokeGuard: false }
+  }
+
+  private enterGuardBreak(): void {
+    if (this.characterState === 'dead') return
+    this.guardBreakTimer = GUARD_BREAK_DURATION_MS
+    this.guardStamina = 0
+    this.enterState('guardBreak', true)
+  }
+
+  private startPostHurtInvuln(): void {
+    this.invulnTimer = POST_HURT_IFRAME_MS
+  }
+
   reactToSkillHit(fromX: number, result: ActionResult): void {
     if (result.kind !== 'damage') return
+    if (this.characterState === 'dead' || this.invulnTimer > 0) return
 
     this.hitboxActive = false
     this.isDashing = false
@@ -144,7 +250,7 @@ export class Character extends Phaser.GameObjects.Sprite {
   enterState(state: CharacterState, force = false): void {
     if (!force && this.characterState === state) return
 
-    const isAttack = state.startsWith('attack')
+    const isAttack = state.startsWith('attack') || state === 'jumpAttack'
     if (isAttack || state === 'skill') {
       if (state === 'skill') {
         this.skillHitLanded = false
@@ -166,21 +272,30 @@ export class Character extends Phaser.GameObjects.Sprite {
   }
 
   private tryDash(): void {
-    if (
-      !this.isGrounded ||
-      this.isDashing ||
-      this.dashCooldown > 0 ||
-      this.knockbackTimer > 0 ||
-      !this.stateMachine.canMove()
-    ) {
+    if (this.isDashing || this.dashCooldown > 0 || this.knockbackTimer > 0) return
+
+    if (!this.isGrounded) {
+      if (!this.canAirDash()) return
+      this.isAirDashing = true
+      this.isDashing = true
+      this.dashTimer = PHYSICS.AIR_DASH_DURATION
+      this.dashCooldown = PHYSICS.AIR_DASH_COOLDOWN
+      this.velocityX = (this.facing === 'right' ? 1 : -1) * PHYSICS.AIR_DASH_SPEED
+      this.velocityY = 0
       return
     }
+
+    if (!this.stateMachine.canMove()) return
 
     this.isDashing = true
     this.dashTimer = PHYSICS.DASH_DURATION
     this.dashCooldown = PHYSICS.DASH_COOLDOWN
     this.velocityX = (this.facing === 'right' ? 1 : -1) * PHYSICS.DASH_SPEED
     this.enterState('run', true)
+  }
+
+  private canAirDash(): boolean {
+    return !this.isGrounded && this.player.heroId === 'shinobi' && this.characterState === 'jump'
   }
 
   private processCombatInput(input: PlayerInput, opponent: Character): void {
@@ -198,6 +313,11 @@ export class Character extends Phaser.GameObjects.Sprite {
 
     if (input.skill && this.skillCooldown <= 0 && this.stateMachine.canSkill()) {
       this.startSkill(opponent)
+      return
+    }
+
+    if (this.stateMachine.canJumpAttack() && (input.attack1 || input.attack2 || input.attack3)) {
+      this.startJumpAttack(opponent)
       return
     }
 
@@ -225,8 +345,15 @@ export class Character extends Phaser.GameObjects.Sprite {
   }
 
   private startAttack(state: 'attack1' | 'attack2' | 'attack3', opponent: Character): void {
+    this.lastWhiffed = false
     this.faceToward(opponent)
     this.enterState(state, true)
+  }
+
+  private startJumpAttack(opponent: Character): void {
+    this.lastWhiffed = false
+    this.faceToward(opponent)
+    this.enterState('jumpAttack', true)
   }
 
   private integratePhysics(delta: number, input: PlayerInput): void {
@@ -242,8 +369,10 @@ export class Character extends Phaser.GameObjects.Sprite {
       this.dashTimer -= dt
       if (this.dashTimer <= 0) {
         this.isDashing = false
+        this.isAirDashing = false
         this.velocityX = 0
         if (this.stateMachine.canMove()) this.enterState('idle')
+        else if (!this.isGrounded && this.characterState !== 'jumpAttack') this.enterState('jump', true)
       }
       this.applyPosition(dt)
       return
@@ -268,7 +397,7 @@ export class Character extends Phaser.GameObjects.Sprite {
       return
     }
 
-    if (this.stateMachine.isLocked() && this.characterState !== 'jump') {
+    if (this.stateMachine.isLocked() && this.characterState !== 'jump' && this.characterState !== 'jumpAttack') {
       this.velocityX = 0
       this.applyPosition(dt)
       return
@@ -399,13 +528,29 @@ export class Character extends Phaser.GameObjects.Sprite {
       key.endsWith('Attack_4')
     ) {
       this.hitboxActive = false
+      if (this.characterState === 'jumpAttack') {
+        if (!this.attackHitLanded) this.lastWhiffed = true
+        this.enterState(this.isGrounded ? 'idle' : 'jump', true)
+        return
+      }
+      if (!this.attackHitLanded) this.lastWhiffed = true
       if (this.characterState !== 'dead') this.enterState('idle', true)
       return
     }
 
     if (key.endsWith('Hurt')) {
-      if (this.player.isDead()) this.enterState('dead', true)
-      else this.enterState('idle', true)
+      if (this.player.isDead()) {
+        this.enterState('dead', true)
+        return
+      }
+      if (this.characterState === 'guardBreak') {
+        this.play(key)
+        return
+      }
+      if (this.characterState === 'hurt') {
+        this.enterState('idle', true)
+        this.startPostHurtInvuln()
+      }
     }
   }
 }

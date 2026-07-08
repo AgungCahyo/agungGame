@@ -5,12 +5,14 @@ export type CharacterState =
   | 'walk'
   | 'run'
   | 'jump'
+  | 'jumpAttack'
   | 'attack1'
   | 'attack2'
   | 'attack3'
   | 'skill'
   | 'shield'
   | 'hurt'
+  | 'guardBreak'
   | 'dead'
 
 const GROUND_STATES: ReadonlySet<CharacterState> = new Set(['idle', 'walk', 'run'])
@@ -18,8 +20,10 @@ const LOCKED_STATES: ReadonlySet<CharacterState> = new Set([
   'attack1',
   'attack2',
   'attack3',
+  'jumpAttack',
   'skill',
   'hurt',
+  'guardBreak',
   'dead',
 ])
 
@@ -50,6 +54,10 @@ export class StateMachine {
     return GROUND_STATES.has(this._state)
   }
 
+  canJumpAttack(): boolean {
+    return this._state === 'jump'
+  }
+
   canSkill(): boolean {
     return GROUND_STATES.has(this._state)
   }
@@ -58,7 +66,9 @@ export class StateMachine {
     return (
       this._state !== 'dead' &&
       this._state !== 'hurt' &&
+      this._state !== 'guardBreak' &&
       !this._state.startsWith('attack') &&
+      this._state !== 'jumpAttack' &&
       this._state !== 'skill' &&
       this._state !== 'jump'
     )
@@ -79,6 +89,8 @@ export function stateToAnim(state: CharacterState): AnimName {
       return 'Run'
     case 'jump':
       return 'Jump'
+    case 'jumpAttack':
+      return 'Attack_1'
     case 'attack1':
       return 'Attack_1'
     case 'attack2':
@@ -88,6 +100,8 @@ export function stateToAnim(state: CharacterState): AnimName {
     case 'shield':
       return 'Shield'
     case 'hurt':
+      return 'Hurt'
+    case 'guardBreak':
       return 'Hurt'
     case 'dead':
       return 'Dead'

@@ -4,6 +4,16 @@ import type { HitEvent } from './EffectsSystem'
 import { boxesOverlap, getHitbox, getHurtbox } from './HitboxSystem'
 import { applySkillOnHit } from './SkillSystem'
 
+/**
+ * Diminishing returns on combo length: the Nth hit in an ongoing combo
+ * (N = hits already landed before this one, 0-indexed) deals less than the
+ * first, floored at 50%. Without this, a fast enough attack string can lock
+ * an opponent in hurt-stun indefinitely for effectively unlimited damage.
+ */
+function comboDamageScale(hitsLanded: number): number {
+  return Math.max(0.5, 1 - hitsLanded * 0.08)
+}
+
 export type DamagePopup = {
   id: number
   x: number
@@ -22,6 +32,8 @@ export class CombatSystem {
   onHit?: (event: HitEvent) => void
 
   private lastComboAttacker: Character | null = null
+  private damageDealt = new Map<Character, number>()
+  private maxCombo = new Map<Character, number>()
 
   resolve(fighters: Character[]): void {
     for (const attacker of fighters) {
@@ -102,10 +114,12 @@ export class CombatSystem {
       isCrit,
       isSkill: true,
       kind,
+      heroId: attacker.player.heroId,
     })
 
     if (kind === 'damage') {
       this.registerCombo(attacker)
+      this.addDamage(attacker, amount)
     }
   }
 
@@ -135,19 +149,40 @@ export class CombatSystem {
           color: '#4ade80',
           ttl: 1.0,
         })
-        this.emitHit({ x: attacker.x, y: attacker.y, amount: healAmt, isCrit: false, isSkill: true, kind: 'heal' })
+        this.emitHit({ x: attacker.x, y: attacker.y, amount: healAmt, isCrit: false, isSkill: true, kind: 'heal', heroId: attacker.player.heroId })
       }
       break
     }
   }
 
   private applyAttackHit(attacker: Character, target: Character): void {
-    if (target.characterState === 'shield') return
+    attacker.attackHitLanded = true
+    if (target.isInvulnerable) return
 
     const mult = ATTACK_DAMAGE_MULT[attacker.characterState as keyof typeof ATTACK_DAMAGE_MULT] ?? 1
-    const { amount, isCrit } = rollDamage(attacker.player.hitPoint * mult)
+    const rolled = rollDamage(attacker.player.hitPoint * mult)
+    const isCrit = rolled.isCrit
+    const scale = comboDamageScale(this.getComboFor(attacker))
+    const amount = Math.max(1, Math.round(rolled.amount * scale))
 
-    attacker.attackHitLanded = true
+    if (target.characterState === 'shield') {
+      const { chipDamage, brokeGuard } = target.receiveGuardedHit(amount, attacker.x)
+
+      this.popups.push({
+        id: this.popupId++,
+        x: target.x,
+        y: target.y - 130,
+        text: brokeGuard ? `-${chipDamage}!` : `-${chipDamage}`,
+        color: brokeGuard ? '#fbbf24' : '#93c5fd',
+        ttl: 0.9,
+      })
+
+      this.emitHit({ x: target.x, y: target.y, amount: chipDamage, isCrit: false, isSkill: false, kind: 'damage', heroId: attacker.player.heroId })
+      this.registerCombo(attacker)
+      this.addDamage(attacker, chipDamage)
+      return
+    }
+
     target.receiveDamage(amount, isCrit, attacker.x)
 
     this.popups.push({
@@ -159,12 +194,32 @@ export class CombatSystem {
       ttl: 0.9,
     })
 
-    this.emitHit({ x: target.x, y: target.y, amount, isCrit, isSkill: false, kind: 'damage' })
+    this.emitHit({ x: target.x, y: target.y, amount, isCrit, isSkill: false, kind: 'damage', heroId: attacker.player.heroId })
     this.registerCombo(attacker)
+    this.addDamage(attacker, amount)
   }
 
   getComboFor(fighter: Character): number {
     return this.lastComboAttacker === fighter ? this.comboCount : 0
+  }
+
+  getDamageDealt(fighter: Character): number {
+    return this.damageDealt.get(fighter) ?? 0
+  }
+
+  getLongestCombo(fighter: Character): number {
+    return this.maxCombo.get(fighter) ?? 0
+  }
+
+  resetRoundStats(): void {
+    this.comboCount = 0
+    this.comboTimer = 0
+    this.lastComboAttacker = null
+    this.popups = []
+  }
+
+  private addDamage(attacker: Character, amount: number): void {
+    this.damageDealt.set(attacker, (this.damageDealt.get(attacker) ?? 0) + amount)
   }
 
   private registerCombo(attacker: Character): void {
@@ -175,6 +230,11 @@ export class CombatSystem {
       this.lastComboAttacker = attacker
     }
     this.comboTimer = 2.5
+
+    const prevMax = this.maxCombo.get(attacker) ?? 0
+    if (this.comboCount > prevMax) {
+      this.maxCombo.set(attacker, this.comboCount)
+    }
   }
 
   private emitHit(event: HitEvent): void {

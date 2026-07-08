@@ -6,7 +6,7 @@ export function isSelfSkill(heroId: string): boolean {
 }
 
 export function applySkillOnHit(attacker: Character, target: Character): ActionResult | null {
-  if (target.characterState === 'shield' || target.characterState === 'dead') return null
+  if (target.characterState === 'shield' || target.characterState === 'dead' || target.isInvulnerable) return null
 
   const result = attacker.player.skill(target.player)
   target.reactToSkillHit(attacker.x, result)

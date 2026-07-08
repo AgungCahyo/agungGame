@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 
 // ─────────────────────────────────────────────
 // Sprite metadata — shared by every character folder in /public/assets/fighter
-// All sheets are 128×128 per frame (confirmed from your assets).
+// All sheets are 128×128 per frame.
 // ─────────────────────────────────────────────
 
 type AnimName = 'Idle' | 'Walk' | 'Run' | 'Jump' | 'Attack_1' | 'Attack_2' | 'Attack_3' | 'Shield' | 'Hurt' | 'Dead'
@@ -64,14 +64,14 @@ class Player {
     this.health = maxHealth
   }
 
-  /** Basic attack. Damage math lives here, not in the UI layer. */
+  /** Basic attack. Damage math lives here. */
   attack(target: Player): ActionResult {
     const { amount, isCrit } = rollDamage(this.hitPoint)
     target.takeDamage(amount)
     return { amount, isCrit, kind: 'damage', label: 'Attack', animKey: 'Attack_1' }
   }
 
-  /** Every hero overrides this with its own ability. Base fallback = a plain attack. */
+  /** Every hero overrides this with its own ability. */
   skill(target: Player): ActionResult {
     return this.attack(target)
   }
@@ -90,15 +90,14 @@ class Player {
 }
 
 // ─────────────────────────────────────────────
-// Heroes — 6 characters, each its own Player subclass with its own skill()
-// Folder names match what you uploaded under /public/assets/fighter/<folder>/
+// Heroes — 6 characters, each its own Player subclass
 // ─────────────────────────────────────────────
 
 class Fighter extends Player {
   skillLabel = 'Combo Strike'
   skillAnimKey = 'Attack_2' as AnimName
   constructor(name: string) {
-    super('fighter', name, 'Fighter', 18, 110, 550, 1400, '#4A90D9')
+    super('fighter', name, 'Fighter', 18, 110, 550, 1400, '#3b82f6')
   }
   skill(target: Player): ActionResult {
     const amount = Math.round(this.hitPoint * 1.8)
@@ -111,10 +110,9 @@ class Samurai extends Player {
   skillLabel = 'Iaijutsu'
   skillAnimKey = 'Attack_3' as AnimName
   constructor(name: string) {
-    super('samurai', name, 'Samurai', 24, 90, 700, 2200, '#B03A5B')
+    super('samurai', name, 'Samurai', 24, 90, 700, 2200, '#ec4899')
   }
   skill(target: Player): ActionResult {
-    // Punishes a low-HP target hard, otherwise just a strong hit.
     const executing = target.health / target.maxHealth < 0.3
     const { amount, isCrit } = rollDamage(this.hitPoint * (executing ? 2.2 : 1.3))
     target.takeDamage(amount)
@@ -126,7 +124,7 @@ class Shinobi extends Player {
   skillLabel = 'Flurry'
   skillAnimKey = 'Attack_1' as AnimName
   constructor(name: string) {
-    super('shinobi', name, 'Shinobi', 14, 95, 380, 1700, '#E8871E')
+    super('shinobi', name, 'Shinobi', 14, 95, 380, 1700, '#f59e0b')
   }
   skill(target: Player): ActionResult {
     const hit1 = rollDamage(this.hitPoint * 0.65)
@@ -147,7 +145,7 @@ class VampireGirl extends Player {
   skillLabel = 'Blood Drain'
   skillAnimKey = 'Attack_2' as AnimName
   constructor(name: string) {
-    super('vampire_girl', name, 'Vampire_Girl', 16, 100, 600, 1900, '#9B5DE5')
+    super('vampire_girl', name, 'Vampire_Girl', 16, 100, 600, 1900, '#a855f7')
   }
   skill(target: Player): ActionResult {
     const { amount, isCrit } = rollDamage(this.hitPoint * 1.4)
@@ -161,7 +159,7 @@ class ConvertedVampire extends Player {
   skillLabel = 'Fortify'
   skillAnimKey = 'Shield' as AnimName
   constructor(name: string) {
-    super('converted_vampire', name, 'Converted_Vampire', 12, 150, 680, 3000, '#7C8B9A')
+    super('converted_vampire', name, 'Converted_Vampire', 12, 150, 680, 3000, '#14b8a6')
   }
   skill(_target: Player): ActionResult {
     const amount = Math.round(this.maxHealth * 0.22)
@@ -174,10 +172,9 @@ class CountessVampire extends Player {
   skillLabel = 'Crimson Edge'
   skillAnimKey = 'Attack_3' as AnimName
   constructor(name: string) {
-    super('countess_vampire', name, 'Countess_Vampire', 20, 85, 620, 2000, '#D9224A')
+    super('countess_vampire', name, 'Countess_Vampire', 20, 85, 620, 2000, '#f43f5e')
   }
   skill(target: Player): ActionResult {
-    // Guaranteed crit.
     const variance = 0.8 + Math.random() * 0.4
     const amount = Math.round(this.hitPoint * variance * 1.6)
     target.takeDamage(amount)
@@ -186,7 +183,7 @@ class CountessVampire extends Player {
 }
 
 // ─────────────────────────────────────────────
-// Hero roster metadata (for the selection screen + instantiation)
+// Hero roster metadata
 // ─────────────────────────────────────────────
 
 type HeroId = 'fighter' | 'samurai' | 'shinobi' | 'vampire_girl' | 'converted_vampire' | 'countess_vampire'
@@ -194,18 +191,19 @@ type HeroId = 'fighter' | 'samurai' | 'shinobi' | 'vampire_girl' | 'converted_va
 const HERO_LIST: {
   id: HeroId
   label: string
+  folder: string
   color: string
   tagline: string
   skillLabel: string
   stats: { hp: number; dmg: number; atkCooldown: number; skillCooldown: number }
   create: (name: string) => Player
 }[] = [
-  { id: 'fighter', label: 'Fighter', color: '#4A90D9', tagline: 'Seimbang — Combo Strike pasti kena', skillLabel: 'Combo Strike', stats: { hp: 110, dmg: 18, atkCooldown: 550, skillCooldown: 1400 }, create: (name) => new Fighter(name) },
-  { id: 'samurai', label: 'Samurai', color: '#B03A5B', tagline: 'Berat & mematikan — Iaijutsu makin sakit di HP lawan yang menipis', skillLabel: 'Iaijutsu', stats: { hp: 90, dmg: 24, atkCooldown: 700, skillCooldown: 2200 }, create: (name) => new Samurai(name) },
-  { id: 'shinobi', label: 'Shinobi', color: '#E8871E', tagline: 'Gesit — Flurry menghantam dua kali cepat', skillLabel: 'Flurry', stats: { hp: 95, dmg: 14, atkCooldown: 380, skillCooldown: 1700 }, create: (name) => new Shinobi(name) },
-  { id: 'vampire_girl', label: 'Vampire Girl', color: '#9B5DE5', tagline: 'Blood Drain — menyerap sebagian damage jadi HP', skillLabel: 'Blood Drain', stats: { hp: 100, dmg: 16, atkCooldown: 600, skillCooldown: 1900 }, create: (name) => new VampireGirl(name) },
-  { id: 'converted_vampire', label: 'Converted Vampire', color: '#7C8B9A', tagline: 'Tahan banting — Fortify memulihkan HP', skillLabel: 'Fortify', stats: { hp: 150, dmg: 12, atkCooldown: 680, skillCooldown: 3000 }, create: (name) => new ConvertedVampire(name) },
-  { id: 'countess_vampire', label: 'Countess Vampire', color: '#D9224A', tagline: 'Rapuh tapi mematikan — Crimson Edge selalu critical', skillLabel: 'Crimson Edge', stats: { hp: 85, dmg: 20, atkCooldown: 620, skillCooldown: 2000 }, create: (name) => new CountessVampire(name) },
+  { id: 'fighter', label: 'Fighter', folder: 'Fighter', color: '#3b82f6', tagline: 'Balance — High hit consistency', skillLabel: 'Combo Strike', stats: { hp: 110, dmg: 18, atkCooldown: 550, skillCooldown: 1400 }, create: (name) => new Fighter(name) },
+  { id: 'samurai', label: 'Samurai', folder: 'Samurai', color: '#ec4899', tagline: 'Heavy hitter — Executes low HP targets', skillLabel: 'Iaijutsu', stats: { hp: 90, dmg: 24, atkCooldown: 700, skillCooldown: 2200 }, create: (name) => new Samurai(name) },
+  { id: 'shinobi', label: 'Shinobi', folder: 'Shinobi', color: '#f59e0b', tagline: 'Agility — Fast multi-strike attacker', skillLabel: 'Flurry', stats: { hp: 95, dmg: 14, atkCooldown: 380, skillCooldown: 1700 }, create: (name) => new Shinobi(name) },
+  { id: 'vampire_girl', label: 'Vampire Girl', folder: 'Vampire_Girl', color: '#a855f7', tagline: 'Lifesteal — Steals HP on attack', skillLabel: 'Blood Drain', stats: { hp: 100, dmg: 16, atkCooldown: 600, skillCooldown: 1900 }, create: (name) => new VampireGirl(name) },
+  { id: 'converted_vampire', label: 'Converted Vampire', folder: 'Converted_Vampire', color: '#14b8a6', tagline: 'Tank — Regenerates HP to fortify defense', skillLabel: 'Fortify', stats: { hp: 150, dmg: 12, atkCooldown: 680, skillCooldown: 3000 }, create: (name) => new ConvertedVampire(name) },
+  { id: 'countess_vampire', label: 'Countess Vampire', folder: 'Countess_Vampire', color: '#f43f5e', tagline: 'Glass Cannon — Guaranteed critical hits', skillLabel: 'Crimson Edge', stats: { hp: 85, dmg: 20, atkCooldown: 620, skillCooldown: 2000 }, create: (name) => new CountessVampire(name) },
 ]
 
 // ─────────────────────────────────────────────
@@ -222,6 +220,7 @@ function SpriteCharacter({
   pulseKind,
   pulseId,
   onAnimEnd,
+  scale = 1.4,
 }: {
   folder: string
   anim: AnimName
@@ -230,13 +229,13 @@ function SpriteCharacter({
   pulseKind: PulseKind
   pulseId: number
   onAnimEnd?: () => void
+  scale?: number
 }) {
   const [frame, setFrame] = useState(0)
   const meta = ANIM_META[anim]
   const onAnimEndRef = useRef(onAnimEnd)
   onAnimEndRef.current = onAnimEnd
 
-  // Drive the frame stepping for the current animation.
   useEffect(() => {
     setFrame(0)
     const interval = setInterval(() => {
@@ -251,8 +250,7 @@ function SpriteCharacter({
       })
     }, 1000 / meta.fps)
     return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anim, folder])
+  }, [anim, folder, meta.frames, meta.loop, meta.fps])
 
   const [activePulse, setActivePulse] = useState<PulseKind>('none')
   const prevPulse = useRef(pulseId)
@@ -265,35 +263,36 @@ function SpriteCharacter({
     }
   }, [pulseId, pulseKind])
 
-  const flinchX = activePulse === 'hit' ? -12 : 0
-  const bobY = activePulse === 'heal' ? -8 : 0
+  const flinchX = activePulse === 'hit' ? -15 : 0
+  const bobY = activePulse === 'heal' ? -10 : 0
 
   const filter =
     activePulse === 'hit'
-      ? 'brightness(1.7)'
+      ? 'brightness(1.8) drop-shadow(0 0 12px #ef4444)'
       : activePulse === 'heal'
-      ? 'drop-shadow(0 0 10px #22c55e) brightness(1.3)'
+      ? 'drop-shadow(0 0 15px #10b981) brightness(1.3)'
       : 'none'
 
   return (
     <div
       style={{
-        width: FRAME_SIZE * 1.4,
-        height: FRAME_SIZE * 1.4,
+        width: FRAME_SIZE * scale,
+        height: FRAME_SIZE * scale,
         transform: dead
-          ? `translateY(6px) rotate(${facing === 'right' ? 6 : -6}deg)`
+          ? `translateY(15px) rotate(${facing === 'right' ? 8 : -8}deg)`
           : `translateX(${flinchX * (facing === 'left' ? -1 : 1)}px) translateY(${bobY}px)`,
-        transition: dead ? 'transform 0.4s ease-in' : 'transform 0.15s ease-out, filter 0.15s ease-out',
+        transition: dead ? 'transform 0.5s ease-in' : 'transform 0.15s ease-out, filter 0.15s ease-out',
         filter,
-        opacity: dead ? 0.55 : 1,
+        opacity: dead ? 0.45 : 1,
         overflow: 'hidden',
       }}
+      className="flex items-center justify-center"
     >
       <div
         style={{
           width: FRAME_SIZE,
           height: FRAME_SIZE,
-          transform: `scale(1.4) scaleX(${facing === 'left' ? -1 : 1})`,
+          transform: `scale(${scale}) scaleX(${facing === 'left' ? -1 : 1})`,
           transformOrigin: 'center',
           backgroundImage: `url(${SPRITE_BASE}/${folder}/${anim}.png)`,
           backgroundPosition: `-${frame * FRAME_SIZE}px 0px`,
@@ -311,18 +310,70 @@ function SpriteCharacter({
 
 function HealthBar({ current, max }: { current: number; max: number }) {
   const pct = Math.max(0, Math.round((current / max) * 100))
-  const color = pct > 50 ? 'bg-emerald-400' : pct > 25 ? 'bg-amber-400' : 'bg-rose-500'
+  const color = pct > 50 ? 'from-emerald-500 to-teal-400' : pct > 25 ? 'from-amber-500 to-yellow-400' : 'from-rose-600 to-red-500'
+  
+  // Custom ghost delay bar handler
+  const [delayPct, setDelayPct] = useState(100)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (delayPct > pct) {
+        setDelayPct(Math.max(pct, delayPct - 1.5))
+      } else if (delayPct < pct) {
+        setDelayPct(pct)
+      }
+    }, 40)
+    return () => clearTimeout(t)
+  }, [pct, delayPct])
+
   return (
-    <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden border border-white/10">
-      <div className={`h-full ${color} transition-all duration-300 ease-out`} style={{ width: `${pct}%` }} />
+    <div className="w-full h-4 rounded-md bg-slate-950/80 overflow-hidden border border-white/10 p-[2px] relative shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
+      {/* Ghost damage bar */}
+      <div 
+        className="absolute top-[2px] bottom-[2px] left-[2px] bg-red-400/30 rounded-sm transition-all duration-300 ease-out" 
+        style={{ width: `calc(${delayPct}% - 4px)` }} 
+      />
+      {/* Main progress bar */}
+      <div 
+        className={`h-full bg-gradient-to-r ${color} rounded-sm transition-all duration-300 ease-out`} 
+        style={{ width: `${pct}%` }} 
+      />
     </div>
   )
 }
 
 function CooldownBar({ pct, color }: { pct: number; color: string }) {
   return (
-    <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-      <div className="h-full transition-all duration-75 ease-linear" style={{ width: `${pct * 100}%`, background: color }} />
+    <div className="w-full h-2 rounded bg-slate-950/80 overflow-hidden border border-white/5 relative">
+      <div 
+        className="h-full transition-all duration-75 ease-linear" 
+        style={{ 
+          width: `${pct * 100}%`, 
+          background: `linear-gradient(to right, ${color}cc, ${color})`,
+          boxShadow: `0 0 8px ${color}`
+        }} 
+      />
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// Visual Stat Bar (Selection Screen)
+// ─────────────────────────────────────────────
+
+function StatVisualBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = Math.min(100, Math.max(0, (value / max) * 100))
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-[10px] font-mono tracking-wider text-slate-400">
+        <span>{label}</span>
+        <span className="font-semibold text-white">{value}</span>
+      </div>
+      <div className="w-full h-1.5 rounded-full bg-slate-950 border border-white/5 overflow-hidden">
+        <div 
+          className="h-full rounded-full transition-all duration-500 ease-out" 
+          style={{ width: `${pct}%`, backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
+        />
+      </div>
     </div>
   )
 }
@@ -338,6 +389,10 @@ export default function Home() {
   const [screen, setScreen] = useState<'select' | 'battle'>('select')
   const [p1HeroId, setP1HeroId] = useState<HeroId | null>(null)
   const [p2HeroId, setP2HeroId] = useState<HeroId | null>(null)
+  
+  // Customizable Player Names
+  const [p1Name, setP1Name] = useState('Player 1')
+  const [p2Name, setP2Name] = useState('Player 2')
 
   const playersRef = useRef<{ p1: Player; p2: Player } | null>(null)
   const [, setRenderTick] = useState(0)
@@ -369,7 +424,7 @@ export default function Home() {
     setter((prev) => ({ kind, id: prev.id + 1 }))
   }
 
-  const [log, setLog] = useState<string[]>([])
+  const [log, setLog] = useState<{ msg: string; type: 'damage' | 'heal' | 'system' | 'critical' | 'skill' }[]>([])
   const [popups, setPopups] = useState<Popup[]>([])
   const [sparks, setSparks] = useState<Spark[]>([])
   const [arenaShake, setArenaShake] = useState(false)
@@ -377,9 +432,20 @@ export default function Home() {
 
   const popupId = useRef(0)
   const sparkId = useRef(0)
+  const logContainerRef = useRef<HTMLDivElement>(null)
 
   const wait = (ms: number) => new Promise((res) => setTimeout(res, ms))
-  const pushLog = (msg: string) => setLog((prev) => [...prev.slice(-5), msg])
+  
+  const pushLog = (msg: string, type: 'damage' | 'heal' | 'system' | 'critical' | 'skill' = 'system') => {
+    setLog((prev) => [...prev.slice(-19), { msg, type }])
+  }
+
+  // Auto scroll logs
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+    }
+  }, [log])
 
   const spawnPopup = (side: 'left' | 'right', text: string, crit: boolean, kind: 'damage' | 'heal') => {
     const id = popupId.current++
@@ -474,8 +540,6 @@ export default function Home() {
     readyRef.current = now + cooldown
     busyRef.current = true
 
-    // Player owns the combat math — the UI just asks for the result up front,
-    // then plays the animation and applies visual feedback partway through the swing.
     const result = action === 'attack' ? attacker.attack(defender) : attacker.skill(defender)
     const animMeta = ANIM_META[result.animKey]
     const totalMs = (animMeta.frames / animMeta.fps) * 1000
@@ -490,19 +554,22 @@ export default function Home() {
     if (result.kind === 'heal') {
       spawnPopup(attackerSide, `+${result.amount}`, false, 'heal')
       bumpPulse(side, 'heal')
-      pushLog(`${attacker.name} pakai ${result.label}, memulihkan ${result.amount} HP`)
+      pushLog(`${attacker.name} uses ${result.label}, restoring +${result.amount} HP`, 'heal')
     } else {
       spawnPopup(defenderSide, `-${result.amount}`, result.isCrit, 'damage')
       spawnSpark(defenderSide)
       triggerImpact()
       bumpPulse(side === 'p1' ? 'p2' : 'p1', 'hit')
-      pushLog(`${attacker.name} pakai ${result.label} ke ${defender.name} sebesar ${result.amount}${result.isCrit ? ' (CRITICAL!)' : ''}`)
+      pushLog(
+        `${attacker.name} uses ${result.label} on ${defender.name} dealing -${result.amount} damage ${result.isCrit ? '(CRITICAL!)' : ''}`, 
+        result.isCrit ? 'critical' : action === 'skill' ? 'skill' : 'damage'
+      )
     }
     rerender()
 
     const defenderDied = defender.health <= 0
     if (defenderDied) {
-      pushLog(`${defender.name} tumbang! ${attacker.name} menang`)
+      pushLog(`⚔️ ${defender.name} falls! ${attacker.name} is victorious!`, 'system')
       setGameOverName(attacker.name)
     } else if (result.kind === 'damage') {
       playReaction(side === 'p1' ? 'p2' : 'p1', false)
@@ -538,7 +605,7 @@ export default function Home() {
     setP1Anim('Idle')
     setP2Anim('Idle')
     setGameOverName(null)
-    setLog([log1])
+    setLog([{ msg: log1, type: 'system' }])
     setPopups([])
     setSparks([])
   }
@@ -547,8 +614,8 @@ export default function Home() {
     if (!p1HeroId || !p2HeroId) return
     const h1 = HERO_LIST.find((h) => h.id === p1HeroId)!
     const h2 = HERO_LIST.find((h) => h.id === p2HeroId)!
-    playersRef.current = { p1: h1.create(h1.label), p2: h2.create(h2.label) }
-    setupMatch('Bertarung! Player 1: [D] Attack / [F] Skill — Player 2: [K] Attack / [L] Skill.')
+    playersRef.current = { p1: h1.create(p1Name), p2: h2.create(p2Name) }
+    setupMatch('DUEL STARTED! P1: [D] Attack / [F] Skill  —  P2: [K] Attack / [L] Skill.')
     setScreen('battle')
   }
 
@@ -556,8 +623,8 @@ export default function Home() {
     if (!playersRef.current) return
     const h1 = HERO_LIST.find((h) => h.id === playersRef.current!.p1.heroId) ?? HERO_LIST[0]
     const h2 = HERO_LIST.find((h) => h.id === playersRef.current!.p2.heroId) ?? HERO_LIST[0]
-    playersRef.current = { p1: h1.create(h1.label), p2: h2.create(h2.label) }
-    setupMatch('Ronde baru! Player 1: [D] Attack / [F] Skill — Player 2: [K] Attack / [L] Skill.')
+    playersRef.current = { p1: h1.create(p1Name), p2: h2.create(p2Name) }
+    setupMatch('NEW ROUND! P1: [D] Attack / [F] Skill  —  P2: [K] Attack / [L] Skill.')
   }
 
   const backToSelect = () => {
@@ -573,200 +640,544 @@ export default function Home() {
     return Math.min(1, Math.max(0, 1 - remaining / cooldownMs))
   }
 
-  return (
-    <main className="min-h-screen bg-[#0B0D10] text-white flex items-center justify-center px-4 py-10">
-      <style jsx global>{`
-        @keyframes float-up { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-40px); opacity: 0; } }
-        .animate-float-up { animation: float-up 0.9s ease-out forwards; }
-        @keyframes arena-shake {
-          0%, 100% { transform: translate(0, 0); }
-          20% { transform: translate(-3px, 1px); }
-          40% { transform: translate(3px, -1px); }
-          60% { transform: translate(-2px, 1px); }
-          80% { transform: translate(2px, 0); }
-        }
-        .animate-arena-shake { animation: arena-shake 0.18s linear; }
-        @keyframes spark-burst { 0% { transform: scale(0.2); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
-        .animate-spark { animation: spark-burst 0.25s ease-out forwards; }
-      `}</style>
+  // Active hero selection metadata
+  const p1SelectedData = HERO_LIST.find((h) => h.id === p1HeroId)
+  const p2SelectedData = HERO_LIST.find((h) => h.id === p2HeroId)
 
+  return (
+    <main className="min-h-screen w-full flex items-center justify-center px-4 py-6 sm:py-10 bg-grid-cyber select-none relative scanline">
       {screen === 'select' && (
-        <div className="w-full max-w-4xl space-y-8">
-          <div className="text-center">
-            <p className="text-xs tracking-[0.3em] text-white/40 font-mono uppercase">Sprite Duel</p>
-            <h1 className="text-2xl font-semibold mt-1">Pilih Hero</h1>
-            <p className="text-white/40 text-sm mt-1">Local 2-player — satu keyboard, dua pemain.</p>
-            <Link
-              href="/battle"
-              className="inline-block mt-3 text-xs font-mono text-[#4A90D9] hover:text-[#6aa8e8] transition-colors"
-            >
-              → Coba Phaser Battle
-            </Link>
+        <div className="w-full max-w-6xl flex flex-col gap-6 z-20">
+          {/* Header Area */}
+          <div className="text-center py-4 bg-slate-950/40 border border-white/5 rounded-2xl backdrop-blur-xl">
+            <p className="text-[11px] tracking-[0.45em] text-cyan-400 font-mono uppercase">RETRO ARCADE ARENA</p>
+            <h1 className="text-3xl sm:text-4xl font-black mt-1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-rose-400 tracking-tight">
+              SPRITE DUEL PROTOTYPE
+            </h1>
+            <p className="text-slate-400 text-xs mt-2 max-w-lg mx-auto">
+              Simulasi pertarungan 1v1 antar karakter fantasi klasik dengan interface retro modern.
+            </p>
           </div>
 
-          {(['p1', 'p2'] as const).map((side) => {
-            const selected = side === 'p1' ? p1HeroId : p2HeroId
-            const setSelected = side === 'p1' ? setP1HeroId : setP2HeroId
-            return (
-              <div key={side}>
-                <p className="text-sm font-medium mb-3 text-white/70">
-                  {side === 'p1' ? 'Player 1 — [D] Attack, [F] Skill' : 'Player 2 — [K] Attack, [L] Skill'}
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  {HERO_LIST.map((h) => (
-                    <button
-                      key={h.id}
-                      onClick={() => setSelected(h.id)}
-                      className={`text-left rounded-xl border p-3 transition-colors ${
-                        selected === h.id ? 'border-white bg-white/[0.06]' : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
-                      }`}
-                    >
-                      <div className="w-full aspect-square rounded-lg bg-black/30 mb-2 overflow-hidden flex items-end justify-center">
-                        <div
-                          style={{
-                            width: FRAME_SIZE,
-                            height: FRAME_SIZE,
-                            transform: 'scale(0.9)',
-                            backgroundImage: `url(${SPRITE_BASE}/${h.id === 'fighter' ? 'Fighter' : h.id === 'samurai' ? 'Samurai' : h.id === 'shinobi' ? 'Shinobi' : h.id === 'vampire_girl' ? 'Vampire_Girl' : h.id === 'converted_vampire' ? 'Converted_Vampire' : 'Countess_Vampire'}/Idle.png)`,
-                            backgroundPosition: '0px 0px',
-                            backgroundRepeat: 'no-repeat',
-                            imageRendering: 'pixelated',
+          {/* Symmetrical Split Dashboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+            {/* Player 1 Selection Panel */}
+            <div className={`lg:col-span-4 rounded-3xl border transition-all duration-300 flex flex-col p-5 bg-slate-950/60 backdrop-blur-xl ${
+              p1HeroId ? 'border-blue-500/30 shadow-[0_0_25px_rgba(59,130,246,0.15)]' : 'border-white/10'
+            }`}>
+              <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-4">
+                <span className="text-xs font-mono font-bold tracking-widest text-blue-400">PLAYER 1 [BLUE]</span>
+                <span className="text-[10px] font-mono text-slate-500">READY SLOT</span>
+              </div>
+
+              {/* Player 1 Name Customizer */}
+              <input 
+                type="text" 
+                value={p1Name} 
+                onChange={(e) => setP1Name(e.target.value)}
+                maxLength={14}
+                className="w-full px-3 py-2 bg-slate-950 border border-white/10 rounded-lg text-sm text-blue-300 placeholder-slate-600 focus:outline-none focus:border-blue-500 tracking-wide font-medium text-center mb-4 transition-colors"
+                placeholder="Edit Name..."
+              />
+
+              {/* Holographic Portrait Slot */}
+              <div className="aspect-video lg:h-44 w-full rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 overflow-hidden flex items-center justify-center relative shadow-[inset_0_4px_12px_rgba(0,0,0,0.8)]">
+                <div className="absolute inset-0 opacity-15 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.4),transparent_75%)]" />
+                {p1SelectedData ? (
+                  <div className="relative hover:scale-105 transition-transform duration-300">
+                    <SpriteCharacter folder={p1SelectedData.folder} anim="Idle" facing="right" dead={false} pulseKind="none" pulseId={0} scale={1.8} />
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-[3px] w-12 bg-blue-500 rounded-full blur-[2px] opacity-75" />
+                  </div>
+                ) : (
+                  <div className="text-center space-y-1">
+                    <div className="w-12 h-12 border-2 border-dashed border-blue-500/20 rounded-full flex items-center justify-center mx-auto text-blue-500/40 text-xl font-black animate-pulse">?</div>
+                    <span className="text-[10px] font-mono text-slate-500 block uppercase tracking-widest animate-pulse">WAITING SELECTION</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Bio & Description */}
+              {p1SelectedData ? (
+                <div className="mt-4 flex-grow flex flex-col justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-white tracking-wide">{p1SelectedData.label}</h2>
+                    <p className="text-slate-400 text-xs mt-1 leading-relaxed font-mono">{p1SelectedData.tagline}</p>
+                    <div className="mt-3 py-1.5 px-2 bg-blue-950/20 border border-blue-900/30 rounded-lg text-[10px] font-mono text-blue-400 flex justify-between items-center">
+                      <span>SPECIAL SKILL:</span>
+                      <span className="font-bold text-white">{p1SelectedData.skillLabel}</span>
+                    </div>
+                  </div>
+
+                  {/* Horizontal visual stat sliders */}
+                  <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
+                    <StatVisualBar label="HEALTH POINTS" value={p1SelectedData.stats.hp} max={150} color="#3b82f6" />
+                    <StatVisualBar label="ATTACK DAMAGE" value={p1SelectedData.stats.dmg} max={30} color="#3b82f6" />
+                    <StatVisualBar label="ATTACK RECOVERY" value={1000 - p1SelectedData.stats.atkCooldown} max={1000} color="#3b82f6" />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-grow flex items-center justify-center py-10">
+                  <p className="text-xs text-slate-600 font-mono italic">Pilih hero di grid tengah untuk melihat statistik detail.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Central Unified Selection Grid & Controller */}
+            <div className="lg:col-span-4 flex flex-col justify-between gap-5 bg-slate-950/40 border border-white/5 rounded-3xl p-5 backdrop-blur-xl">
+              <div>
+                <h3 className="text-xs font-mono font-bold tracking-widest text-center text-slate-400 mb-4 uppercase">GRID SELECTION</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {HERO_LIST.map((h) => {
+                    const isP1 = p1HeroId === h.id
+                    const isP2 = p2HeroId === h.id
+                    return (
+                      <div key={h.id} className="relative flex flex-col gap-1">
+                        <button
+                          onClick={() => {
+                            if (!p1HeroId || (p1HeroId && p2HeroId)) {
+                              setP1HeroId(h.id)
+                            } else {
+                              setP2HeroId(h.id)
+                            }
                           }}
-                        />
+                          className={`aspect-square rounded-2xl border transition-all duration-300 p-2 flex flex-col items-center justify-center relative overflow-hidden group ${
+                            isP1 && isP2
+                              ? 'border-purple-500 bg-purple-950/20 shadow-[0_0_15px_rgba(168,85,247,0.25)]'
+                              : isP1
+                              ? 'border-blue-500 bg-blue-950/20 shadow-[0_0_15px_rgba(59,130,246,0.25)]'
+                              : isP2
+                              ? 'border-rose-500 bg-rose-950/20 shadow-[0_0_15px_rgba(244,63,94,0.25)]'
+                              : 'border-white/10 bg-slate-900/60 hover:bg-slate-900 hover:border-white/20'
+                          }`}
+                        >
+                          {/* Mini pixelated sprite illustration */}
+                          <div 
+                            className="w-16 h-16 pointer-events-none transition-transform duration-300 group-hover:scale-110"
+                            style={{
+                              backgroundImage: `url(${SPRITE_BASE}/${h.folder}/Idle.png)`,
+                              backgroundPosition: '0px 0px',
+                              backgroundRepeat: 'no-repeat',
+                              imageRendering: 'pixelated',
+                              transform: 'scale(1.2)'
+                            }}
+                          />
+                          
+                          {/* Indicator Flags */}
+                          <div className="absolute top-1 right-1 flex gap-0.5">
+                            {isP1 && <span className="text-[7px] font-black font-mono bg-blue-500 text-white px-1 py-[1px] rounded leading-none shadow-sm">P1</span>}
+                            {isP2 && <span className="text-[7px] font-black font-mono bg-rose-500 text-white px-1 py-[1px] rounded leading-none shadow-sm">P2</span>}
+                          </div>
+                        </button>
+                        <span className="text-[10px] font-mono text-center text-slate-400 truncate">{h.label}</span>
                       </div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="w-3 h-3 rounded-full" style={{ background: h.color }} />
-                        <span className="font-medium text-sm">{h.label}</span>
-                      </div>
-                      <p className="text-[11px] text-white/40 leading-snug mb-2">{h.tagline}</p>
-                      <div className="text-[10px] font-mono text-white/30 space-y-0.5">
-                        <p>❤ {h.stats.hp} &nbsp; ⚔ {h.stats.dmg} &nbsp; ⏱ {h.stats.atkCooldown}ms</p>
-                        <p>✦ {h.skillLabel} ({h.stats.skillCooldown}ms)</p>
-                      </div>
-                    </button>
-                  ))}
+                    )
+                  })}
+                </div>
+
+                {/* Quick Selection Assist buttons */}
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                  <button 
+                    onClick={() => { setP1HeroId(null); setP2HeroId(null) }}
+                    className="py-1 px-2 border border-white/10 rounded-md text-[9px] font-mono hover:bg-white/5 text-slate-500 hover:text-white transition-colors"
+                  >
+                    RESET BOTH
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const ids = HERO_LIST.map(h => h.id)
+                      const random1 = ids[Math.floor(Math.random() * ids.length)]
+                      let random2 = ids[Math.floor(Math.random() * ids.length)]
+                      while (random1 === random2 && ids.length > 1) {
+                        random2 = ids[Math.floor(Math.random() * ids.length)]
+                      }
+                      setP1HeroId(random1)
+                      setP2HeroId(random2)
+                    }}
+                    className="py-1 px-2 border border-white/10 rounded-md text-[9px] font-mono hover:bg-white/5 text-slate-500 hover:text-white transition-colors"
+                  >
+                    RANDOM DUEL
+                  </button>
                 </div>
               </div>
-            )
-          })}
 
-          <button
-            onClick={startBattle}
-            disabled={!p1HeroId || !p2HeroId}
-            className="w-full bg-rose-600 hover:bg-rose-500 disabled:bg-white/10 disabled:text-white/30 transition-colors text-white font-medium px-4 py-3 rounded-xl"
-          >
-            Mulai Bertarung
-          </button>
+              {/* Action trigger button */}
+              <div className="space-y-3">
+                <button
+                  onClick={startBattle}
+                  disabled={!p1HeroId || !p2HeroId}
+                  className="w-full relative group overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-rose-600 hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100 transition-all text-white text-xs font-bold tracking-widest font-mono uppercase px-4 py-3.5 rounded-xl shadow-lg cursor-pointer"
+                >
+                  <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
+                  Mulai Pertarungan
+                </button>
+
+                <div className="text-center">
+                  <Link
+                    href="/battle"
+                    className="inline-flex items-center gap-1.5 justify-center py-2 px-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 text-[10px] font-mono text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-400/30 transition-all font-semibold"
+                  >
+                    🚀 COBA PHASER FIGHT MODE
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Player 2 Selection Panel */}
+            <div className={`lg:col-span-4 rounded-3xl border transition-all duration-300 flex flex-col p-5 bg-slate-950/60 backdrop-blur-xl ${
+              p2HeroId ? 'border-rose-500/30 shadow-[0_0_25px_rgba(244,63,94,0.15)]' : 'border-white/10'
+            }`}>
+              <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-4">
+                <span className="text-xs font-mono font-bold tracking-widest text-rose-400">PLAYER 2 [ROSE]</span>
+                <span className="text-[10px] font-mono text-slate-500">READY SLOT</span>
+              </div>
+
+              {/* Player 2 Name Customizer */}
+              <input 
+                type="text" 
+                value={p2Name} 
+                onChange={(e) => setP2Name(e.target.value)}
+                maxLength={14}
+                className="w-full px-3 py-2 bg-slate-950 border border-white/10 rounded-lg text-sm text-rose-300 placeholder-slate-600 focus:outline-none focus:border-rose-500 tracking-wide font-medium text-center mb-4 transition-colors"
+                placeholder="Edit Name..."
+              />
+
+              {/* Holographic Portrait Slot */}
+              <div className="aspect-video lg:h-44 w-full rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 overflow-hidden flex items-center justify-center relative shadow-[inset_0_4px_12px_rgba(0,0,0,0.8)]">
+                <div className="absolute inset-0 opacity-15 bg-[radial-gradient(circle_at_center,rgba(244,63,94,0.4),transparent_75%)]" />
+                {p2SelectedData ? (
+                  <div className="relative hover:scale-105 transition-transform duration-300">
+                    <SpriteCharacter folder={p2SelectedData.folder} anim="Idle" facing="left" dead={false} pulseKind="none" pulseId={0} scale={1.8} />
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-[3px] w-12 bg-rose-500 rounded-full blur-[2px] opacity-75" />
+                  </div>
+                ) : (
+                  <div className="text-center space-y-1">
+                    <div className="w-12 h-12 border-2 border-dashed border-rose-500/20 rounded-full flex items-center justify-center mx-auto text-rose-500/40 text-xl font-black animate-pulse">?</div>
+                    <span className="text-[10px] font-mono text-slate-500 block uppercase tracking-widest animate-pulse">WAITING SELECTION</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Bio & Description */}
+              {p2SelectedData ? (
+                <div className="mt-4 flex-grow flex flex-col justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-white tracking-wide">{p2SelectedData.label}</h2>
+                    <p className="text-slate-400 text-xs mt-1 leading-relaxed font-mono">{p2SelectedData.tagline}</p>
+                    <div className="mt-3 py-1.5 px-2 bg-rose-950/20 border border-rose-900/30 rounded-lg text-[10px] font-mono text-rose-400 flex justify-between items-center">
+                      <span>SPECIAL SKILL:</span>
+                      <span className="font-bold text-white">{p2SelectedData.skillLabel}</span>
+                    </div>
+                  </div>
+
+                  {/* Horizontal visual stat sliders */}
+                  <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
+                    <StatVisualBar label="HEALTH POINTS" value={p2SelectedData.stats.hp} max={150} color="#f43f5e" />
+                    <StatVisualBar label="ATTACK DAMAGE" value={p2SelectedData.stats.dmg} max={30} color="#f43f5e" />
+                    <StatVisualBar label="ATTACK RECOVERY" value={1000 - p2SelectedData.stats.atkCooldown} max={1000} color="#f43f5e" />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-grow flex items-center justify-center py-10">
+                  <p className="text-xs text-slate-600 font-mono italic">Pilih hero di grid tengah untuk melihat statistik detail.</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
       {screen === 'battle' && p1 && p2 && (
-        <div className="w-full max-w-2xl space-y-6">
-          <div className="text-center">
-            <p className="text-xs tracking-[0.3em] text-white/40 font-mono uppercase">Sprite Duel</p>
-            <h1 className="text-2xl font-semibold mt-1">{p1.name} vs {p2.name}</h1>
-          </div>
-
-          <div className={`relative rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent overflow-hidden ${arenaShake ? 'animate-arena-shake' : ''}`}>
-            <div
-              className="absolute inset-0 opacity-30 pointer-events-none"
-              style={{ background: 'radial-gradient(circle at 20% 60%, rgba(74,144,217,0.25), transparent 40%), radial-gradient(circle at 80% 60%, rgba(232,135,30,0.25), transparent 40%)' }}
-            />
-
-            <div className="relative grid grid-cols-2 gap-4 px-6 pt-6">
-              <div>
+        <div className="w-full max-w-4xl flex flex-col gap-5 z-20">
+          {/* Symmetrical Top Battle HUD */}
+          <div className="glass-panel border border-white/10 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden shadow-2xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 via-slate-900/5 to-rose-900/10 pointer-events-none" />
+            
+            {/* Player 1 HUD Block */}
+            <div className="w-full md:w-5/12 flex items-center gap-3">
+              <div 
+                className="w-12 h-12 rounded-xl bg-slate-900 border-2 overflow-hidden flex items-center justify-center shadow-md relative"
+                style={{ borderColor: p1.color }}
+              >
+                <div 
+                  style={{
+                    width: FRAME_SIZE,
+                    height: FRAME_SIZE,
+                    backgroundImage: `url(${SPRITE_BASE}/${p1.folder}/Idle.png)`,
+                    backgroundPosition: '0px 0px',
+                    backgroundRepeat: 'no-repeat',
+                    imageRendering: 'pixelated',
+                    transform: 'scale(1.3)'
+                  }}
+                  className="scale-x-[-1]"
+                />
+              </div>
+              <div className="flex-grow">
                 <div className="flex justify-between items-baseline mb-1">
-                  <span className="font-medium">{p1.name}</span>
-                  <span className="text-xs text-white/40 font-mono">{p1.health}/{p1.maxHealth}</span>
+                  <span className="font-bold text-sm tracking-wide text-blue-200">{p1.name}</span>
+                  <span className="text-xs font-mono font-bold text-blue-400">{p1.health} / {p1.maxHealth}</span>
                 </div>
                 <HealthBar current={p1.health} max={p1.maxHealth} />
               </div>
-              <div>
-                <div className="flex justify-between items-baseline mb-1">
-                  <span className="text-xs text-white/40 font-mono">{p2.health}/{p2.maxHealth}</span>
-                  <span className="font-medium">{p2.name}</span>
+            </div>
+
+            {/* Central Vs Node & Title */}
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-mono tracking-[0.25em] text-slate-500 font-bold uppercase">MATCH TELEMETRY</span>
+              <div className="h-9 w-9 rounded-full bg-slate-950 border border-white/10 flex items-center justify-center text-xs font-black text-rose-500 tracking-wide mt-1 shadow-md">
+                VS
+              </div>
+            </div>
+
+            {/* Player 2 HUD Block */}
+            <div className="w-full md:w-5/12 flex items-center gap-3 flex-row-reverse">
+              <div 
+                className="w-12 h-12 rounded-xl bg-slate-900 border-2 overflow-hidden flex items-center justify-center shadow-md relative"
+                style={{ borderColor: p2.color }}
+              >
+                <div 
+                  style={{
+                    width: FRAME_SIZE,
+                    height: FRAME_SIZE,
+                    backgroundImage: `url(${SPRITE_BASE}/${p2.folder}/Idle.png)`,
+                    backgroundPosition: '0px 0px',
+                    backgroundRepeat: 'no-repeat',
+                    imageRendering: 'pixelated',
+                    transform: 'scale(1.3)'
+                  }}
+                />
+              </div>
+              <div className="flex-grow">
+                <div className="flex justify-between items-baseline mb-1 flex-row-reverse">
+                  <span className="font-bold text-sm tracking-wide text-rose-200">{p2.name}</span>
+                  <span className="text-xs font-mono font-bold text-rose-400">{p2.health} / {p2.maxHealth}</span>
                 </div>
                 <HealthBar current={p2.health} max={p2.maxHealth} />
               </div>
             </div>
+          </div>
 
-            <div className="relative flex items-end justify-between px-10 pt-8 pb-6 h-56">
+          {/* Graphics Arena */}
+          <div className={`relative rounded-[28px] border border-white/10 bg-slate-950/70 overflow-hidden shadow-2xl ${
+            arenaShake ? 'animate-arena-shake' : ''
+          }`}>
+            {/* Glowing background highlights */}
+            <div
+              className="absolute inset-0 opacity-20 pointer-events-none"
+              style={{
+                background: `
+                  radial-gradient(circle at 20% 60%, ${p1.color}44, transparent 45%),
+                  radial-gradient(circle at 80% 60%, ${p2.color}44, transparent 45%)
+                `
+              }}
+            />
+            {/* Cyber Floor Grid overlay */}
+            <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-grid-cyber opacity-20 pointer-events-none" />
+
+            {/* Screen Actions visual layout */}
+            <div className="relative flex items-end justify-between px-16 pt-10 pb-8 h-64 z-10">
+              {/* Player 1 sprite representation */}
               <div className="relative">
                 <SpriteCharacter folder={p1.folder} anim={p1Anim} facing="right" dead={p1.health <= 0} pulseKind={p1Pulse.kind} pulseId={p1Pulse.id} />
+                
+                {/* Float-up Popup text handler */}
                 {popups.filter((p) => p.side === 'left').map((p) => (
-                  <span key={p.id} className={`animate-float-up absolute -top-4 left-1/2 -translate-x-1/2 font-mono font-bold text-lg ${p.kind === 'heal' ? 'text-emerald-400' : p.crit ? 'text-amber-400' : 'text-rose-400'}`}>
-                    {p.text}{p.crit && p.kind === 'damage' && <span className="text-xs ml-1">CRIT</span>}
+                  <span 
+                    key={p.id} 
+                    className={`animate-float-up absolute -top-8 left-1/2 -translate-x-1/2 font-mono font-black text-xl tracking-tight filter drop-shadow-md select-none ${
+                      p.kind === 'heal' ? 'text-emerald-400' : p.crit ? 'text-yellow-400 text-2xl font-black' : 'text-red-400'
+                    }`}
+                  >
+                    {p.text}
+                    {p.crit && p.kind === 'damage' && <span className="text-[10px] ml-1 bg-yellow-500 text-black px-1 py-[1px] rounded tracking-wide leading-none align-middle font-sans">CRIT</span>}
                   </span>
                 ))}
+
+                {/* Hit effect spark burst */}
                 {sparks.filter((s) => s.side === 'left').map((s) => (
-                  <span key={s.id} className="animate-spark absolute top-8 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.9), transparent 70%)' }} />
+                  <span 
+                    key={s.id} 
+                    className="animate-spark absolute top-10 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full pointer-events-none bg-[radial-gradient(circle,rgba(255,255,255,0.95),rgba(239,68,68,0.7)_40%,transparent_75%)]" 
+                  />
                 ))}
               </div>
 
-              <span className="text-white/20 font-mono text-sm mb-8">VS</span>
+              {/* VS static tag */}
+              <span className="text-white/10 font-black tracking-widest text-4xl mb-12 select-none">VS</span>
 
+              {/* Player 2 sprite representation */}
               <div className="relative">
                 <SpriteCharacter folder={p2.folder} anim={p2Anim} facing="left" dead={p2.health <= 0} pulseKind={p2Pulse.kind} pulseId={p2Pulse.id} />
+                
+                {/* Float-up Popup text handler */}
                 {popups.filter((p) => p.side === 'right').map((p) => (
-                  <span key={p.id} className={`animate-float-up absolute -top-4 left-1/2 -translate-x-1/2 font-mono font-bold text-lg ${p.kind === 'heal' ? 'text-emerald-400' : p.crit ? 'text-amber-400' : 'text-rose-400'}`}>
-                    {p.text}{p.crit && p.kind === 'damage' && <span className="text-xs ml-1">CRIT</span>}
+                  <span 
+                    key={p.id} 
+                    className={`animate-float-up absolute -top-8 left-1/2 -translate-x-1/2 font-mono font-black text-xl tracking-tight filter drop-shadow-md select-none ${
+                      p.kind === 'heal' ? 'text-emerald-400' : p.crit ? 'text-yellow-400 text-2xl font-black' : 'text-red-400'
+                    }`}
+                  >
+                    {p.text}
+                    {p.crit && p.kind === 'damage' && <span className="text-[10px] ml-1 bg-yellow-500 text-black px-1 py-[1px] rounded tracking-wide leading-none align-middle font-sans">CRIT</span>}
                   </span>
                 ))}
+
+                {/* Hit effect spark burst */}
                 {sparks.filter((s) => s.side === 'right').map((s) => (
-                  <span key={s.id} className="animate-spark absolute top-8 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.9), transparent 70%)' }} />
+                  <span 
+                    key={s.id} 
+                    className="animate-spark absolute top-10 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full pointer-events-none bg-[radial-gradient(circle,rgba(255,255,255,0.95),rgba(239,68,68,0.7)_40%,transparent_75%)]" 
+                  />
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/40 font-mono text-xs p-3 h-24 overflow-y-auto space-y-1">
-            {log.map((line, i) => (
-              <p key={i} className="text-white/50"><span className="text-white/20">›</span> {line}</p>
-            ))}
+          {/* Lower Dashboard (Arcade panels & sci-fi terminal log) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+            {/* Player 1 Keyboard control panels */}
+            <div className="md:col-span-3 glass-panel border border-white/5 rounded-2xl p-4 flex flex-col justify-between bg-slate-950/40">
+              <div className="text-center border-b border-white/5 pb-2 mb-3">
+                <span className="text-[9px] font-mono tracking-widest text-slate-500 font-bold uppercase">{p1.name} CABINET</span>
+              </div>
+              <div className="space-y-3 flex-grow flex flex-col justify-center">
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => performAction('p1', 'attack')}
+                    className="w-full active:scale-95 transition-transform duration-75 text-white font-black py-2.5 rounded-xl border border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20 text-xs tracking-wider flex items-center justify-between px-4"
+                  >
+                    <span>ATTACK</span>
+                    <kbd className="px-1.5 py-0.5 rounded bg-blue-500 text-white text-[9px] font-mono leading-none">D</kbd>
+                  </button>
+                  <CooldownBar pct={cooldownPct(p1AtkReadyRef.current, p1.cooldownMs)} color={p1.color} />
+                </div>
+
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => performAction('p1', 'skill')} 
+                    className="w-full active:scale-95 transition-transform duration-75 text-white font-black py-2.5 rounded-xl border border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-[10px] tracking-wider flex items-center justify-between px-4"
+                  >
+                    <span className="truncate mr-1 uppercase">{p1.skillLabel}</span>
+                    <kbd className="px-1.5 py-0.5 rounded bg-purple-500 text-white text-[9px] font-mono leading-none">F</kbd>
+                  </button>
+                  <CooldownBar pct={cooldownPct(p1SkillReadyRef.current, p1.skillCooldownMs)} color={p1.color} />
+                </div>
+              </div>
+            </div>
+
+            {/* Center Sci-fi Command Terminal Log */}
+            <div className="md:col-span-6 glass-panel border border-white/5 rounded-2xl p-3 flex flex-col justify-between h-44 bg-black/50">
+              <div className="flex items-center justify-between border-b border-white/5 pb-1.5 mb-2 px-1">
+                <span className="text-[9px] font-mono tracking-widest text-slate-500 font-bold uppercase">COMBAT LOG FEEDS</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
+              <div 
+                ref={logContainerRef} 
+                className="flex-grow overflow-y-auto space-y-1.5 custom-scrollbar px-1 text-[10px] font-mono leading-normal select-text"
+              >
+                {log.map((line, i) => {
+                  let logColor = 'text-slate-400'
+                  if (line.type === 'damage') logColor = 'text-rose-400'
+                  else if (line.type === 'heal') logColor = 'text-emerald-400 font-bold'
+                  else if (line.type === 'critical') logColor = 'text-yellow-400 font-extrabold tracking-wide'
+                  else if (line.type === 'skill') logColor = 'text-purple-400 font-semibold'
+                  else if (line.type === 'system') logColor = 'text-blue-300 font-bold'
+
+                  return (
+                    <p key={i} className={`${logColor} tracking-wide border-l-2 pl-2 border-white/5`}>
+                      <span className="text-white/20 mr-1 select-none">›</span>
+                      {line.msg}
+                    </p>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Player 2 Keyboard control panels */}
+            <div className="md:col-span-3 glass-panel border border-white/5 rounded-2xl p-4 flex flex-col justify-between bg-slate-950/40">
+              <div className="text-center border-b border-white/5 pb-2 mb-3">
+                <span className="text-[9px] font-mono tracking-widest text-slate-500 font-bold uppercase">{p2.name} CABINET</span>
+              </div>
+              <div className="space-y-3 flex-grow flex flex-col justify-center">
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => performAction('p2', 'attack')}
+                    className="w-full active:scale-95 transition-transform duration-75 text-white font-black py-2.5 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-xs tracking-wider flex items-center justify-between px-4"
+                  >
+                    <span>ATTACK</span>
+                    <kbd className="px-1.5 py-0.5 rounded bg-rose-500 text-white text-[9px] font-mono leading-none">K</kbd>
+                  </button>
+                  <CooldownBar pct={cooldownPct(p2AtkReadyRef.current, p2.cooldownMs)} color={p2.color} />
+                </div>
+
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => performAction('p2', 'skill')} 
+                    className="w-full active:scale-95 transition-transform duration-75 text-white font-black py-2.5 rounded-xl border border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20 text-[10px] tracking-wider flex items-center justify-between px-4"
+                  >
+                    <span className="truncate mr-1 uppercase">{p2.skillLabel}</span>
+                    <kbd className="px-1.5 py-0.5 rounded bg-orange-500 text-white text-[9px] font-mono leading-none">L</kbd>
+                  </button>
+                  <CooldownBar pct={cooldownPct(p2SkillReadyRef.current, p2.skillCooldownMs)} color={p2.color} />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {!gameOverName ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <button onClick={() => performAction('p1', 'attack')} className="w-full text-white font-medium px-3 py-2.5 rounded-xl transition-colors text-sm" style={{ background: p1.color }}>
-                  Attack <span className="text-white/60 font-mono text-xs">[D]</span>
-                </button>
-                <CooldownBar pct={cooldownPct(p1AtkReadyRef.current, p1.cooldownMs)} color={p1.color} />
-                <button onClick={() => performAction('p1', 'skill')} className="w-full border text-white font-medium px-3 py-2 rounded-xl transition-colors text-xs" style={{ borderColor: p1.color }}>
-                  {p1.skillLabel} <span className="text-white/50 font-mono">[F]</span>
-                </button>
-                <CooldownBar pct={cooldownPct(p1SkillReadyRef.current, p1.skillCooldownMs)} color={p1.color} />
-              </div>
-              <div className="space-y-2">
-                <button onClick={() => performAction('p2', 'attack')} className="w-full text-white font-medium px-3 py-2.5 rounded-xl transition-colors text-sm" style={{ background: p2.color }}>
-                  Attack <span className="text-white/60 font-mono text-xs">[K]</span>
-                </button>
-                <CooldownBar pct={cooldownPct(p2AtkReadyRef.current, p2.cooldownMs)} color={p2.color} />
-                <button onClick={() => performAction('p2', 'skill')} className="w-full border text-white font-medium px-3 py-2 rounded-xl transition-colors text-xs" style={{ borderColor: p2.color }}>
-                  {p2.skillLabel} <span className="text-white/50 font-mono">[L]</span>
-                </button>
-                <CooldownBar pct={cooldownPct(p2SkillReadyRef.current, p2.skillCooldownMs)} color={p2.color} />
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-center space-y-3">
-              <p className="text-sm text-white/40 font-mono uppercase tracking-widest">Pertandingan selesai</p>
-              <p className="text-xl font-semibold">🏆 {gameOverName} menang!</p>
-              <div className="flex gap-3 justify-center">
-                <button onClick={rematch} className="bg-white text-black font-medium px-4 py-2 rounded-xl hover:bg-white/90 transition-colors">
-                  Main Lagi
-                </button>
-                <button onClick={backToSelect} className="border border-white/20 text-white font-medium px-4 py-2 rounded-xl hover:bg-white/5 transition-colors">
-                  Ganti Hero
-                </button>
-              </div>
-            </div>
+          {/* Quick exit footer */}
+          {!gameOverName && (
+            <button onClick={backToSelect} className="w-full text-[10px] font-mono text-slate-500 hover:text-white transition-colors py-1">
+              ← GANTI HERO / KEMBALI KE SELECTION
+            </button>
           )}
 
-          {!gameOverName && (
-            <button onClick={backToSelect} className="w-full text-xs text-white/30 hover:text-white/60 transition-colors">
-              ← Ganti hero
-            </button>
+          {/* Cyberpunk Match Result Screen Modal overlay */}
+          {gameOverName && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+              <div className="glass-panel border-2 border-yellow-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center space-y-5 shadow-[0_0_50px_rgba(234,179,8,0.15)] relative">
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 rounded-full bg-slate-900 border border-yellow-500/20 flex items-center justify-center shadow-lg">
+                  <span className="text-4xl">🏆</span>
+                </div>
+                <div className="pt-8">
+                  <p className="text-[10px] text-yellow-500 font-mono uppercase tracking-[0.35em] font-black">MATCH TERMINATED</p>
+                  <h2 className="text-2xl font-black mt-2 text-white uppercase tracking-wide">
+                    {gameOverName} WINS!
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-2 italic font-mono">
+                    Pertarungan sengit telah diselesaikan secara adil di arena prototype.
+                  </p>
+                </div>
+
+                <div className="bg-slate-950/80 rounded-2xl border border-white/5 p-4 text-left font-mono space-y-2 text-xs">
+                  <div className="flex justify-between border-b border-white/5 pb-1 text-slate-400">
+                    <span>WINNER FIGHTER:</span>
+                    <span className="text-white font-bold">{gameOverName}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-1 text-slate-400">
+                    <span>MATCH DURATION:</span>
+                    <span className="text-white font-bold">{((Date.now() - (playersRef.current ? nowTick : Date.now())) / 1000).toFixed(1)}s</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>TELEMETRY OUTCOME:</span>
+                    <span className="text-yellow-400 font-bold uppercase">SECURED</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button 
+                    onClick={rematch} 
+                    className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-950 font-black px-4 py-2.5 rounded-xl hover:brightness-110 transition-all text-xs tracking-wider uppercase font-mono shadow-md cursor-pointer"
+                  >
+                    MAIN LAGI
+                  </button>
+                  <button 
+                    onClick={backToSelect} 
+                    className="w-full border border-white/20 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-white/5 transition-colors text-xs tracking-wider uppercase font-mono cursor-pointer"
+                  >
+                    GANTI HERO
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

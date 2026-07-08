@@ -12,6 +12,9 @@ export const PHYSICS = {
   DASH_SPEED: 440,
   DASH_DURATION: 0.18,
   DASH_COOLDOWN: 0.5,
+  AIR_DASH_SPEED: 380,
+  AIR_DASH_DURATION: 0.14,
+  AIR_DASH_COOLDOWN: 0.65,
 } as const
 
 export function knockbackDirection(fromX: number, toX: number): 1 | -1 {

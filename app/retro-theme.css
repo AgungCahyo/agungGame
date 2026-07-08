@@ -1,0 +1,60 @@
+/* retro-theme.css - Retro arcade pixel art theme */
+
+/* Pixel Font */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root {
+  --background: #0a0010; /* deep purple/black */
+  --foreground: #e0e0ff; /* soft cyan text */
+}
+
+html, body {
+  font-family: 'Press Start 2P', cursive;
+  background: var(--background);
+  color: var(--foreground);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Retro pixel grid background */
+.bg-retro-grid {
+  background-image:
+    linear-gradient(to right, rgba(255,0,255,0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,0,255,0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Utility neon colors */
+.neon-pink { color: #ff00ff; text-shadow: 0 0 5px #ff00ff, 0 0 10px #ff00ff; }
+.neon-cyan { color: #00ffff; text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff; }
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+/* Neon glow utilities */
+.neon-glow-cyan { box-shadow: 0 0 15px rgba(0,255,255,0.25), inset 0 0 10px rgba(0,255,255,0.1); text-shadow: 0 0 8px rgba(0,255,255,0.5); }
+.neon-glow-rose { box-shadow: 0 0 15px rgba(255,0,255,0.25), inset 0 0 10px rgba(255,0,255,0.1); text-shadow: 0 0 8px rgba(255,0,255,0.5); }
+
+/* Diagonal clip layout */
+.clip-diagonal { clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%); }
+.clip-diagonal-left { clip-path: polygon(10px 0%, 100% 0%, 100% 100%, 0% 100%); }
+.clip-diagonal-right { clip-path: polygon(0% 0%, calc(100% - 10px) 0%, 100% 100%, 0% 100%); }
+
+/* Glassmorphism panels */
+.glass-panel { background: rgba(13,17,33,0.45); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); }
+.glass-panel-hover:hover { background: rgba(13,17,33,0.6); border-color: rgba(255,255,255,0.15); transform: translateY(-2px); transition: all 0.3s cubic-bezier(0.16,1,0.3,1); }
+
+/* Keyframe animations */
+@keyframes float-up { 0% { transform: translateY(0) scale(0.9); opacity:1; } 100% { transform: translateY(-50px) scale(1.1); opacity:0; } }
+.animate-float-up { animation: float-up 0.9s cubic-bezier(0.16,1,0.3,1) forwards; }
+@keyframes arena-shake { 0%,100% { transform: translate(0,0); } 20% { transform: translate(-4px,2px); } 40% { transform: translate(4px,-2px); } 60% { transform: translate(-3px,1px); } 80% { transform: translate(3px,-1px); } }
+.animate-arena-shake { animation: arena-shake 0.2s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes spark-burst { 0% { transform: scale(0.2) rotate(0deg); opacity:1; filter: brightness(1.5); } 100% { transform: scale(1.8) rotate(45deg); opacity:0; filter: brightness(1); } }
+.animate-spark { animation: spark-burst 0.3s cubic-bezier(0.1,0.8,0.3,1) forwards; }
+@keyframes neon-pulse { 0%,100% { opacity:0.8; box-shadow:0 0 10px rgba(0,255,255,0.2); } 50% { opacity:1; box-shadow:0 0 20px rgba(0,255,255,0.4); } }
+.animate-neon-pulse { animation: neon-pulse 2s infinite ease-in-out; }
+@keyframes flash-red { 0%,100% { background: rgba(239,68,68,0); } 50% { background: rgba(239,68,68,0.25); } }
+.animate-flash-red { animation: flash-red 1.5s infinite ease-in-out; }

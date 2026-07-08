@@ -34,11 +34,11 @@ type CharacterLike = {
 }
 
 export function isHitboxState(state: CharacterState): boolean {
-  return state.startsWith('attack') || state === 'skill'
+  return state.startsWith('attack') || state === 'jumpAttack' || state === 'skill'
 }
 
-export function isAttackState(state: CharacterState): state is 'attack1' | 'attack2' | 'attack3' {
-  return state === 'attack1' || state === 'attack2' || state === 'attack3'
+export function isAttackState(state: CharacterState): state is 'attack1' | 'attack2' | 'attack3' | 'jumpAttack' {
+  return state === 'attack1' || state === 'attack2' || state === 'attack3' || state === 'jumpAttack'
 }
 
 export function isThreatState(state: CharacterState): boolean {
@@ -61,9 +61,10 @@ export function getHitbox(char: CharacterLike): HitBox | null {
   if (!char.hitboxActive || !isHitboxState(char.characterState)) return null
 
   const s = char.scaleX
-  const w = 52 * s
-  const h = 34 * s
-  const y = char.y - 88 * s
+  const isJumpAttack = char.characterState === 'jumpAttack'
+  const w = (isJumpAttack ? 40 : 52) * s
+  const h = (isJumpAttack ? 28 : 34) * s
+  const y = char.y - (isJumpAttack ? 72 : 88) * s
 
   if (char.facing === 'right') {
     return { x: char.x + 8 * s, y, width: w, height: h }
